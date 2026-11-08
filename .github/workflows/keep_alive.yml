@@ -1,0 +1,33 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # يعمل كل يومين في تمام الساعة 12:00 ظهراً لمنع توقف السيرفر
+    - cron: '0 12 */2 * *'
+  # يتيح لك تشغيله يدوياً في أي وقت
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    name: Ping Supabase Database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send keep-alive query to Supabase
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/members?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "Response HTTP Status: $HTTP_CODE"
+          echo "Response Body: $BODY"
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "Success: Supabase database is active and alive!"
+            exit 0
+          else
+            echo "Warning or Error: Received status $HTTP_CODE"
+            exit 1
+          fi
